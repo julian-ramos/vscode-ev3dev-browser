@@ -1,0 +1,1300 @@
+diff --git a/node_modules/ssh2-streams/lib/sftp.js b/node_modules/ssh2-streams/lib/sftp.js
+index 9e93200..4774740 100644
+--- a/node_modules/ssh2-streams/lib/sftp.js
++++ b/node_modules/ssh2-streams/lib/sftp.js
+@@ -6,7 +6,9 @@ var WritableStream = require('stream').Writable;
+ var constants = require('fs').constants || process.binding('constants');
+ var util = require('util');
+ var inherits = util.inherits;
+-var isDate = util.isDate;
++var isDate = function (v) {
++  return Object.prototype.toString.call(v) === '[object Date]';
++};
+ var listenerCount = require('events').EventEmitter.listenerCount;
+ var fs = require('fs');
+ 
+@@ -32,7 +34,7 @@ var STATUS_CODE = {
+   CONNECTION_LOST: 7,
+   OP_UNSUPPORTED: 8
+ };
+-Object.keys(STATUS_CODE).forEach(function(key) {
++Object.keys(STATUS_CODE).forEach(function (key) {
+   STATUS_CODE[STATUS_CODE[key]] = key;
+ });
+ var STATUS_CODE_STR = {
+@@ -70,7 +72,7 @@ var REQUEST = {
+   SYMLINK: 20,
+   EXTENDED: 200
+ };
+-Object.keys(REQUEST).forEach(function(key) {
++Object.keys(REQUEST).forEach(function (key) {
+   REQUEST[REQUEST[key]] = key;
+ });
+ 
+@@ -83,7 +85,7 @@ var RESPONSE = {
+   ATTRS: 105,
+   EXTENDED: 201
+ };
+-Object.keys(RESPONSE).forEach(function(key) {
++Object.keys(RESPONSE).forEach(function (key) {
+   RESPONSE[RESPONSE[key]] = key;
+ });
+ 
+@@ -100,11 +102,11 @@ SFTPStream.OPEN_MODE = OPEN_MODE;
+ var MAX_PKT_LEN = 34000;
+ var MAX_REQID = Math.pow(2, 32) - 1;
+ var CLIENT_VERSION_BUFFER = new Buffer([0, 0, 0, 5 /* length */,
+-                                        REQUEST.INIT,
+-                                        0, 0, 0, 3 /* version */]);
++  REQUEST.INIT,
++  0, 0, 0, 3 /* version */]);
+ var SERVER_VERSION_BUFFER = new Buffer([0, 0, 0, 5 /* length */,
+-                                        RESPONSE.VERSION,
+-                                        0, 0, 0, 3 /* version */]);
++  RESPONSE.VERSION,
++  0, 0, 0, 3 /* version */]);
+ /*
+   http://tools.ietf.org/html/draft-ietf-secsh-filexfer-02:
+ 
+@@ -121,7 +123,7 @@ var SERVER_VERSION_BUFFER = new Buffer([0, 0, 0, 5 /* length */,
+ var RE_OPENSSH = /^SSH-2.0-(?:OpenSSH|dropbear)/;
+ var OPENSSH_MAX_DATA_LEN = (256 * 1024) - (2 * 1024)/*account for header data*/;
+ 
+-function DEBUG_NOOP(msg) {}
++function DEBUG_NOOP(msg) { }
+ 
+ function SFTPStream(cfg, remoteIdentRaw) {
+   if (typeof cfg === 'string' && !remoteIdentRaw) {
+@@ -133,8 +135,8 @@ function SFTPStream(cfg, remoteIdentRaw) {
+ 
+   TransformStream.call(this, {
+     highWaterMark: (typeof cfg.highWaterMark === 'number'
+-                    ? cfg.highWaterMark
+-                    : 32 * 1024)
++      ? cfg.highWaterMark
++      : 32 * 1024)
+   });
+ 
+   this.debug = (typeof cfg.debug === 'function' ? cfg.debug : DEBUG_NOOP);
+@@ -158,7 +160,7 @@ function SFTPStream(cfg, remoteIdentRaw) {
+   };
+ 
+   var self = this;
+-  this.on('end', function() {
++  this.on('end', function () {
+     self.readable = false;
+   }).on('finish', onFinish)
+     .on('prefinish', onFinish);
+@@ -173,7 +175,7 @@ function SFTPStream(cfg, remoteIdentRaw) {
+ inherits(SFTPStream, TransformStream);
+ 
+ SFTPStream.prototype.__read = TransformStream.prototype._read;
+-SFTPStream.prototype._read = function(n) {
++SFTPStream.prototype._read = function (n) {
+   if (this._needContinue) {
+     this._needContinue = false;
+     this.emit('continue');
+@@ -181,7 +183,7 @@ SFTPStream.prototype._read = function(n) {
+   return this.__read(n);
+ };
+ SFTPStream.prototype.__push = TransformStream.prototype.push;
+-SFTPStream.prototype.push = function(chunk, encoding) {
++SFTPStream.prototype.push = function (chunk, encoding) {
+   if (!this.readable)
+     return false;
+   if (chunk === null)
+@@ -191,7 +193,7 @@ SFTPStream.prototype.push = function(chunk, encoding) {
+   return ret;
+ };
+ 
+-SFTPStream.prototype._cleanup = function(callback) {
++SFTPStream.prototype._cleanup = function (callback) {
+   var state = this._state;
+ 
+   state.pktBuf = undefined; // give GC something to do
+@@ -220,7 +222,7 @@ SFTPStream.prototype._cleanup = function(callback) {
+   }
+ };
+ 
+-SFTPStream.prototype._transform = function(chunk, encoding, callback) {
++SFTPStream.prototype._transform = function (chunk, encoding, callback) {
+   var state = this._state;
+   var server = this.server;
+   var status = state.status;
+@@ -253,9 +255,9 @@ SFTPStream.prototype._transform = function(chunk, encoding, callback) {
+       chunkLeft = (chunkLen - chunkPos);
+       if (pktLeft <= chunkLeft) {
+         chunk.copy(pktBuf,
+-                   pktBuf.length - pktLeft,
+-                   chunkPos,
+-                   chunkPos + pktLeft);
++          pktBuf.length - pktLeft,
++          chunkPos,
++          chunkPos + pktLeft);
+         chunkPos += pktLeft;
+         pktLeft = 0;
+         buffer = pktBuf;
+@@ -285,10 +287,10 @@ SFTPStream.prototype._transform = function(chunk, encoding, callback) {
+             status = 'bad_pkt';
+           } else if (pktLeft > MAX_PKT_LEN) {
+             var msg = 'Packet length ('
+-                      + pktLeft
+-                      + ') exceeds max length ('
+-                      + MAX_PKT_LEN
+-                      + ')';
++              + pktLeft
++              + ') exceeds max length ('
++              + MAX_PKT_LEN
++              + ')';
+             debug('DEBUG[SFTP]: Parser: ' + msg);
+             this._cleanup(false);
+             return callback(new Error(msg));
+@@ -350,7 +352,7 @@ SFTPStream.prototype._transform = function(chunk, encoding, callback) {
+           if (state.extensions[extname])
+             state.extensions[extname].push(extdata);
+           else
+-            state.extensions[extname] = [ extdata ];
++            state.extensions[extname] = [extdata];
+         }
+ 
+         this.emit('ready');
+@@ -399,17 +401,17 @@ SFTPStream.prototype._transform = function(chunk, encoding, callback) {
+                     return;
+                   if ((buffer._pos + 4) < buffer.length) {
+                     lang = readString(buffer,
+-                                      buffer._pos,
+-                                      'ascii',
+-                                      this,
+-                                      callback);
++                      buffer._pos,
++                      'ascii',
++                      this,
++                      callback);
+                     if (lang === false)
+                       return;
+                   }
+                 }
+                 var err = new Error(msg
+-                                    || STATUS_CODE_STR[code]
+-                                    || 'Unknown status');
++                  || STATUS_CODE_STR[code]
++                  || 'Unknown status');
+                 err.code = code;
+                 err.lang = lang;
+                 cb(err);
+@@ -458,7 +460,7 @@ SFTPStream.prototype._transform = function(chunk, encoding, callback) {
+               if (namesLen === false)
+                 return;
+               var names = [],
+-                  longname;
++                longname;
+               buffer._pos = 8;
+               for (var i = 0; i < namesLen; ++i) {
+                 // we are going to assume UTF-8 for filenames despite the SFTPv3
+@@ -466,19 +468,19 @@ SFTPStream.prototype._transform = function(chunk, encoding, callback) {
+                 // versions of the protocol all explicitly specify UTF-8 for
+                 // filenames
+                 filename = readString(buffer,
+-                                      buffer._pos,
+-                                      'utf8',
+-                                      this,
+-                                      callback);
++                  buffer._pos,
++                  'utf8',
++                  this,
++                  callback);
+                 if (filename === false)
+                   return;
+                 // `longname` only exists in SFTPv3 and since it typically will
+                 // contain the filename, we assume it is also UTF-8
+                 longname = readString(buffer,
+-                                      buffer._pos,
+-                                      'utf8',
+-                                      this,
+-                                      callback);
++                  buffer._pos,
++                  'utf8',
++                  this,
++                  callback);
+                 if (longname === false)
+                   return;
+                 attrs = readAttrs(buffer, buffer._pos, this, callback);
+@@ -564,7 +566,7 @@ SFTPStream.prototype._transform = function(chunk, encoding, callback) {
+                     if (stats.f_namemax === false)
+                       return;
+                     cb(undefined, stats);
+-                  break;
++                    break;
+                 }
+               }
+               // XXX: at least provide the raw buffer data to the callback in
+@@ -599,8 +601,8 @@ SFTPStream.prototype._transform = function(chunk, encoding, callback) {
+                 return;
+               this.emit(evName, id, filename, pflags, attrs);
+             } else if (pktType === REQUEST.CLOSE
+-                       || pktType === REQUEST.FSTAT
+-                       || pktType === REQUEST.READDIR) {
++              || pktType === REQUEST.FSTAT
++              || pktType === REQUEST.READDIR) {
+               /*
+                 string     handle
+               */
+@@ -641,12 +643,12 @@ SFTPStream.prototype._transform = function(chunk, encoding, callback) {
+                 return;
+               this.emit(evName, id, handle, offset, data);
+             } else if (pktType === REQUEST.LSTAT
+-                       || pktType === REQUEST.STAT
+-                       || pktType === REQUEST.OPENDIR
+-                       || pktType === REQUEST.REMOVE
+-                       || pktType === REQUEST.RMDIR
+-                       || pktType === REQUEST.REALPATH
+-                       || pktType === REQUEST.READLINK) {
++              || pktType === REQUEST.STAT
++              || pktType === REQUEST.OPENDIR
++              || pktType === REQUEST.REMOVE
++              || pktType === REQUEST.RMDIR
++              || pktType === REQUEST.REALPATH
++              || pktType === REQUEST.READLINK) {
+               /*
+                 string     path
+               */
+@@ -655,7 +657,7 @@ SFTPStream.prototype._transform = function(chunk, encoding, callback) {
+                 return;
+               this.emit(evName, id, path);
+             } else if (pktType === REQUEST.SETSTAT
+-                       || pktType === REQUEST.MKDIR) {
++              || pktType === REQUEST.MKDIR) {
+               /*
+                 string     path
+                 ATTRS      attrs
+@@ -680,7 +682,7 @@ SFTPStream.prototype._transform = function(chunk, encoding, callback) {
+                 return;
+               this.emit(evName, id, handle, attrs);
+             } else if (pktType === REQUEST.RENAME
+-                       || pktType === REQUEST.SYMLINK) {
++              || pktType === REQUEST.SYMLINK) {
+               /*
+                 RENAME:
+                   string     oldpath
+@@ -716,8 +718,8 @@ SFTPStream.prototype._transform = function(chunk, encoding, callback) {
+     } else if (status === 'bad_pkt') {
+       if (server && buffer[4] !== REQUEST.INIT) {
+         var errCode = (buffer[4] === REQUEST.EXTENDED
+-                       ? STATUS_CODE.OP_UNSUPPORTED
+-                       : STATUS_CODE.FAILURE);
++          ? STATUS_CODE.OP_UNSUPPORTED
++          : STATUS_CODE.FAILURE);
+ 
+         // no request id for init/version packets, so we have no way to send a
+         // status response, so we just close up shop ...
+@@ -751,19 +753,19 @@ SFTPStream.prototype._transform = function(chunk, encoding, callback) {
+ };
+ 
+ // client
+-SFTPStream.prototype.createReadStream = function(path, options) {
++SFTPStream.prototype.createReadStream = function (path, options) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+ 
+   return new ReadStream(this, path, options);
+ };
+-SFTPStream.prototype.createWriteStream = function(path, options) {
++SFTPStream.prototype.createWriteStream = function (path, options) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+ 
+   return new WriteStream(this, path, options);
+ };
+-SFTPStream.prototype.open = function(path, flags_, attrs, cb) {
++SFTPStream.prototype.open = function (path, flags_, attrs, cb) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+ 
+@@ -820,7 +822,7 @@ SFTPStream.prototype.open = function(path, flags_, attrs, cb) {
+   this.debug('DEBUG[SFTP]: Outgoing: Writing OPEN');
+   return this.push(buf);
+ };
+-SFTPStream.prototype.close = function(handle, cb) {
++SFTPStream.prototype.close = function (handle, cb) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+   else if (!Buffer.isBuffer(handle))
+@@ -849,7 +851,7 @@ SFTPStream.prototype.close = function(handle, cb) {
+   this.debug('DEBUG[SFTP]: Outgoing: Writing CLOSE');
+   return this.push(buf);
+ };
+-SFTPStream.prototype.readData = function(handle, buf, off, len, position, cb) {
++SFTPStream.prototype.readData = function (handle, buf, off, len, position, cb) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+   else if (!Buffer.isBuffer(handle))
+@@ -891,7 +893,7 @@ SFTPStream.prototype.readData = function(handle, buf, off, len, position, cb) {
+   out.writeUInt32BE(len, p += 8, true);
+ 
+   state.requests[reqid] = {
+-    cb: function(err, data, nb) {
++    cb: function (err, data, nb) {
+       if (err && err.code !== STATUS_CODE.EOF)
+         return cb(err);
+       cb(undefined, nb || 0, data, position);
+@@ -902,7 +904,7 @@ SFTPStream.prototype.readData = function(handle, buf, off, len, position, cb) {
+   this.debug('DEBUG[SFTP]: Outgoing: Writing READ');
+   return this.push(out);
+ };
+-SFTPStream.prototype.writeData = function(handle, buf, off, len, position, cb) {
++SFTPStream.prototype.writeData = function (handle, buf, off, len, position, cb) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+   else if (!Buffer.isBuffer(handle))
+@@ -920,13 +922,13 @@ SFTPStream.prototype.writeData = function(handle, buf, off, len, position, cb) {
+   var state = this._state;
+ 
+   if (!len) {
+-    cb && process.nextTick(function() { cb(undefined, 0); });
++    cb && process.nextTick(function () { cb(undefined, 0); });
+     return;
+   }
+ 
+   var overflow = (len > state.maxDataLen
+-                  ? len - state.maxDataLen
+-                  : 0);
++    ? len - state.maxDataLen
++    : 0);
+   var origPosition = position;
+ 
+   if (overflow)
+@@ -958,16 +960,16 @@ SFTPStream.prototype.writeData = function(handle, buf, off, len, position, cb) {
+   buf.copy(out, p += 4, off, off + len);
+ 
+   state.requests[reqid] = {
+-    cb: function(err) {
++    cb: function (err) {
+       if (err)
+         cb && cb(err);
+       else if (overflow) {
+         self.writeData(handle,
+-                       buf,
+-                       off + len,
+-                       overflow,
+-                       origPosition + len,
+-                       cb);
++          buf,
++          off + len,
++          overflow,
++          origPosition + len,
++          cb);
+       } else
+         cb && cb(undefined, off + len);
+     }
+@@ -994,12 +996,12 @@ function fastXfer(src, dst, srcPath, dstPath, opts, cb) {
+     cb = opts;
+   } else if (typeof opts === 'object') {
+     if (typeof opts.concurrency === 'number'
+-        && opts.concurrency > 0
+-        && !isNaN(opts.concurrency))
++      && opts.concurrency > 0
++      && !isNaN(opts.concurrency))
+       concurrency = opts.concurrency;
+     if (typeof opts.chunkSize === 'number'
+-        && opts.chunkSize > 0
+-        && !isNaN(opts.chunkSize))
++      && opts.chunkSize > 0
++      && !isNaN(opts.chunkSize))
+       chunkSize = opts.chunkSize;
+     if (typeof opts.step === 'function')
+       onstep = opts.step;
+@@ -1031,7 +1033,7 @@ function fastXfer(src, dst, srcPath, dstPath, opts, cb) {
+     var cbfinal;
+ 
+     if (srcHandle || dstHandle) {
+-      cbfinal = function() {
++      cbfinal = function () {
+         if (--left === 0)
+           cb(err);
+       };
+@@ -1047,7 +1049,7 @@ function fastXfer(src, dst, srcPath, dstPath, opts, cb) {
+       cb(err);
+   }
+ 
+-  src.open(srcPath, 'r', function(err, sourceHandle) {
++  src.open(srcPath, 'r', function (err, sourceHandle) {
+     if (err)
+       return onerror(err);
+ 
+@@ -1058,7 +1060,7 @@ function fastXfer(src, dst, srcPath, dstPath, opts, cb) {
+         if (src !== fs) {
+           // Try stat() for sftp servers that may not support fstat() for
+           // whatever reason
+-          src.stat(srcPath, function(err_, attrs_) {
++          src.stat(srcPath, function (err_, attrs_) {
+             if (err_)
+               return onerror(err);
+             tryStat(null, attrs_);
+@@ -1069,7 +1071,7 @@ function fastXfer(src, dst, srcPath, dstPath, opts, cb) {
+       }
+       fsize = attrs.size;
+ 
+-      dst.open(dstPath, 'w', function(err, destHandle) {
++      dst.open(dstPath, 'w', function (err, destHandle) {
+         if (err)
+           return onerror(err);
+ 
+@@ -1097,7 +1099,7 @@ function fastXfer(src, dst, srcPath, dstPath, opts, cb) {
+             if (err) {
+               // Try chmod() for sftp servers that may not support fchmod() for
+               // whatever reason
+-              dst.chmod(dstPath, mode, function(err_) {
++              dst.chmod(dstPath, mode, function (err_) {
+                 tryAgain();
+               });
+               return;
+@@ -1126,11 +1128,11 @@ function fastXfer(src, dst, srcPath, dstPath, opts, cb) {
+ 
+             if (--reads === 0) {
+               if (total === fsize) {
+-                dst.close(dstHandle, function(err) {
++                dst.close(dstHandle, function (err) {
+                   dstHandle = undefined;
+                   if (err)
+                     return onerror(err);
+-                  src.close(srcHandle, function(err) {
++                  src.close(srcHandle, function (err) {
+                     srcHandle = undefined;
+                     if (err)
+                       return onerror(err);
+@@ -1144,7 +1146,7 @@ function fastXfer(src, dst, srcPath, dstPath, opts, cb) {
+         }
+ 
+         function makeCb(psrc, pdst) {
+-          return function(err, nb, data) {
++          return function (err, nb, data) {
+             onread(err, nb, data, pdst, psrc);
+           };
+         }
+@@ -1154,11 +1156,11 @@ function fastXfer(src, dst, srcPath, dstPath, opts, cb) {
+             chunk = (pdst + chunkSize > fsize ? fsize - pdst : chunkSize);
+             if (src === fs) {
+               src.read(srcHandle,
+-                       readbuf,
+-                       psrc,
+-                       chunk,
+-                       pdst,
+-                       makeCb(psrc, pdst));
++                readbuf,
++                psrc,
++                chunk,
++                pdst,
++                makeCb(psrc, pdst));
+             } else
+               src.readData(srcHandle, readbuf, psrc, chunk, pdst, onread);
+             psrc += chunk;
+@@ -1171,19 +1173,19 @@ function fastXfer(src, dst, srcPath, dstPath, opts, cb) {
+     });
+   });
+ }
+-SFTPStream.prototype.fastGet = function(remotePath, localPath, opts, cb) {
++SFTPStream.prototype.fastGet = function (remotePath, localPath, opts, cb) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+ 
+   fastXfer(this, fs, remotePath, localPath, opts, cb);
+ };
+-SFTPStream.prototype.fastPut = function(localPath, remotePath, opts, cb) {
++SFTPStream.prototype.fastPut = function (localPath, remotePath, opts, cb) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+ 
+   fastXfer(fs, this, localPath, remotePath, opts, cb);
+ };
+-SFTPStream.prototype.readFile = function(path, options, callback_) {
++SFTPStream.prototype.readFile = function (path, options, callback_) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+ 
+@@ -1220,7 +1222,7 @@ SFTPStream.prototype.readFile = function(path, options, callback_) {
+   var bytesRead = 0;
+ 
+   var flag = options.flag || 'r';
+-  this.open(path, flag, 438 /*=0666*/, function(er, handle_) {
++  this.open(path, flag, 438 /*=0666*/, function (er, handle_) {
+     if (er)
+       return callback && callback(er);
+     handle = handle_;
+@@ -1229,9 +1231,9 @@ SFTPStream.prototype.readFile = function(path, options, callback_) {
+       if (er) {
+         // Try stat() for sftp servers that may not support fstat() for
+         // whatever reason
+-        self.stat(path, function(er_, st_) {
++        self.stat(path, function (er_, st_) {
+           if (er_) {
+-            return self.close(handle, function() {
++            return self.close(handle, function () {
+               callback && callback(er);
+             });
+           }
+@@ -1263,7 +1265,7 @@ SFTPStream.prototype.readFile = function(path, options, callback_) {
+ 
+   function afterRead(er, nbytes) {
+     if (er) {
+-      return self.close(handle, function() {
++      return self.close(handle, function () {
+         return callback && callback(er);
+       });
+     }
+@@ -1286,7 +1288,7 @@ SFTPStream.prototype.readFile = function(path, options, callback_) {
+   }
+ 
+   function close() {
+-    self.close(handle, function(er) {
++    self.close(handle, function (er) {
+       if (size === 0) {
+         // collected the data into the buffers list.
+         buffer = Buffer.concat(buffers, pos);
+@@ -1303,27 +1305,27 @@ function writeAll(self, handle, buffer, offset, length, position, callback_) {
+   var callback = (typeof callback_ === 'function' ? callback_ : undefined);
+ 
+   self.writeData(handle,
+-                 buffer,
+-                 offset,
+-                 length,
+-                 position,
+-                 function(writeErr, written) {
+-    if (writeErr) {
+-      return self.close(handle, function() {
+-        callback && callback(writeErr);
+-      });
+-    }
+-    if (written === length)
+-      self.close(handle, callback);
+-    else {
+-      offset += written;
+-      length -= written;
+-      position += written;
+-      writeAll(self, handle, buffer, offset, length, position, callback);
+-    }
+-  });
++    buffer,
++    offset,
++    length,
++    position,
++    function (writeErr, written) {
++      if (writeErr) {
++        return self.close(handle, function () {
++          callback && callback(writeErr);
++        });
++      }
++      if (written === length)
++        self.close(handle, callback);
++      else {
++        offset += written;
++        length -= written;
++        position += written;
++        writeAll(self, handle, buffer, offset, length, position, callback);
++      }
++    });
+ }
+-SFTPStream.prototype.writeFile = function(path, data, options, callback_) {
++SFTPStream.prototype.writeFile = function (path, data, options, callback_) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+ 
+@@ -1347,13 +1349,13 @@ SFTPStream.prototype.writeFile = function(path, data, options, callback_) {
+     throw new Error('Unknown encoding: ' + options.encoding);
+ 
+   var flag = options.flag || 'w';
+-  this.open(path, flag, options.mode, function(openErr, handle) {
++  this.open(path, flag, options.mode, function (openErr, handle) {
+     if (openErr)
+       callback && callback(openErr);
+     else {
+       var buffer = (Buffer.isBuffer(data)
+-                    ? data
+-                    : new Buffer('' + data, options.encoding || 'utf8'));
++        ? data
++        : new Buffer('' + data, options.encoding || 'utf8'));
+       var position = (/a/.test(flag) ? null : 0);
+ 
+       // SFTPv3 does not support the notion of 'current position'
+@@ -1364,9 +1366,9 @@ SFTPStream.prototype.writeFile = function(path, data, options, callback_) {
+           if (er) {
+             // Try stat() for sftp servers that may not support fstat() for
+             // whatever reason
+-            self.stat(path, function(er_, st_) {
++            self.stat(path, function (er_, st_) {
+               if (er_) {
+-                return self.close(handle, function() {
++                return self.close(handle, function () {
+                   callback && callback(er);
+                 });
+               }
+@@ -1382,7 +1384,7 @@ SFTPStream.prototype.writeFile = function(path, data, options, callback_) {
+     }
+   });
+ };
+-SFTPStream.prototype.appendFile = function(path, data, options, callback_) {
++SFTPStream.prototype.appendFile = function (path, data, options, callback_) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+ 
+@@ -1405,15 +1407,15 @@ SFTPStream.prototype.appendFile = function(path, data, options, callback_) {
+     options = util._extend({ flag: 'a' }, options);
+   this.writeFile(path, data, options, callback);
+ };
+-SFTPStream.prototype.exists = function(path, cb) {
++SFTPStream.prototype.exists = function (path, cb) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+ 
+-  this.stat(path, function(err) {
++  this.stat(path, function (err) {
+     cb && cb(err ? false : true);
+   });
+ };
+-SFTPStream.prototype.unlink = function(filename, cb) {
++SFTPStream.prototype.unlink = function (filename, cb) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+ 
+@@ -1440,7 +1442,7 @@ SFTPStream.prototype.unlink = function(filename, cb) {
+   this.debug('DEBUG[SFTP]: Outgoing: Writing REMOVE');
+   return this.push(buf);
+ };
+-SFTPStream.prototype.rename = function(oldPath, newPath, cb) {
++SFTPStream.prototype.rename = function (oldPath, newPath, cb) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+ 
+@@ -1471,7 +1473,7 @@ SFTPStream.prototype.rename = function(oldPath, newPath, cb) {
+   this.debug('DEBUG[SFTP]: Outgoing: Writing RENAME');
+   return this.push(buf);
+ };
+-SFTPStream.prototype.mkdir = function(path, attrs, cb) {
++SFTPStream.prototype.mkdir = function (path, attrs, cb) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+ 
+@@ -1519,7 +1521,7 @@ SFTPStream.prototype.mkdir = function(path, attrs, cb) {
+   this.debug('DEBUG[SFTP]: Outgoing: Writing MKDIR');
+   return this.push(buf);
+ };
+-SFTPStream.prototype.rmdir = function(path, cb) {
++SFTPStream.prototype.rmdir = function (path, cb) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+ 
+@@ -1546,7 +1548,7 @@ SFTPStream.prototype.rmdir = function(path, cb) {
+   this.debug('DEBUG[SFTP]: Outgoing: Writing RMDIR');
+   return this.push(buf);
+ };
+-SFTPStream.prototype.readdir = function(where, opts, cb) {
++SFTPStream.prototype.readdir = function (where, opts, cb) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+ 
+@@ -1574,15 +1576,15 @@ SFTPStream.prototype.readdir = function(where, opts, cb) {
+       if (err)
+         return cb(err);
+ 
+-      self.readdir(handle, opts, function(err, list) {
++      self.readdir(handle, opts, function (err, list) {
+         var eof = (err && err.code === STATUS_CODE.EOF);
+ 
+         if (err && !eof) {
+-          return self.close(handle, function() {
++          return self.close(handle, function () {
+             cb(err);
+           });
+         } else if (eof) {
+-          return self.close(handle, function(err) {
++          return self.close(handle, function (err) {
+             if (err)
+               return cb(err);
+             cb(undefined, entries);
+@@ -1615,24 +1617,24 @@ SFTPStream.prototype.readdir = function(where, opts, cb) {
+ 
+   state.requests[reqid] = {
+     cb: (doFilter
+-         ? function(err, list) {
+-             if (err)
+-               return cb(err);
+-
+-             for (var i = list.length - 1; i >= 0; --i) {
+-               if (list[i].filename === '.' || list[i].filename === '..')
+-                 list.splice(i, 1);
+-             }
+-
+-             cb(undefined, list);
+-           }
+-         : cb)
++      ? function (err, list) {
++        if (err)
++          return cb(err);
++
++        for (var i = list.length - 1; i >= 0; --i) {
++          if (list[i].filename === '.' || list[i].filename === '..')
++            list.splice(i, 1);
++        }
++
++        cb(undefined, list);
++      }
++      : cb)
+   };
+ 
+   this.debug('DEBUG[SFTP]: Outgoing: Writing READDIR');
+   return this.push(buf);
+ };
+-SFTPStream.prototype.fstat = function(handle, cb) {
++SFTPStream.prototype.fstat = function (handle, cb) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+   else if (!Buffer.isBuffer(handle))
+@@ -1661,7 +1663,7 @@ SFTPStream.prototype.fstat = function(handle, cb) {
+   this.debug('DEBUG[SFTP]: Outgoing: Writing FSTAT');
+   return this.push(buf);
+ };
+-SFTPStream.prototype.stat = function(path, cb) {
++SFTPStream.prototype.stat = function (path, cb) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+ 
+@@ -1688,7 +1690,7 @@ SFTPStream.prototype.stat = function(path, cb) {
+   this.debug('DEBUG[SFTP]: Outgoing: Writing STAT');
+   return this.push(buf);
+ };
+-SFTPStream.prototype.lstat = function(path, cb) {
++SFTPStream.prototype.lstat = function (path, cb) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+ 
+@@ -1715,7 +1717,7 @@ SFTPStream.prototype.lstat = function(path, cb) {
+   this.debug('DEBUG[SFTP]: Outgoing: Writing LSTAT');
+   return this.push(buf);
+ };
+-SFTPStream.prototype.opendir = function(path, cb) {
++SFTPStream.prototype.opendir = function (path, cb) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+ 
+@@ -1742,7 +1744,7 @@ SFTPStream.prototype.opendir = function(path, cb) {
+   this.debug('DEBUG[SFTP]: Outgoing: Writing OPENDIR');
+   return this.push(buf);
+ };
+-SFTPStream.prototype.setstat = function(path, attrs, cb) {
++SFTPStream.prototype.setstat = function (path, attrs, cb) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+ 
+@@ -1787,7 +1789,7 @@ SFTPStream.prototype.setstat = function(path, attrs, cb) {
+   this.debug('DEBUG[SFTP]: Outgoing: Writing SETSTAT');
+   return this.push(buf);
+ };
+-SFTPStream.prototype.fsetstat = function(handle, attrs, cb) {
++SFTPStream.prototype.fsetstat = function (handle, attrs, cb) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+   else if (!Buffer.isBuffer(handle))
+@@ -1834,41 +1836,41 @@ SFTPStream.prototype.fsetstat = function(handle, attrs, cb) {
+   this.debug('DEBUG[SFTP]: Outgoing: Writing FSETSTAT');
+   return this.push(buf);
+ };
+-SFTPStream.prototype.futimes = function(handle, atime, mtime, cb) {
++SFTPStream.prototype.futimes = function (handle, atime, mtime, cb) {
+   return this.fsetstat(handle, {
+     atime: toUnixTimestamp(atime),
+     mtime: toUnixTimestamp(mtime)
+   }, cb);
+ };
+-SFTPStream.prototype.utimes = function(path, atime, mtime, cb) {
++SFTPStream.prototype.utimes = function (path, atime, mtime, cb) {
+   return this.setstat(path, {
+     atime: toUnixTimestamp(atime),
+     mtime: toUnixTimestamp(mtime)
+   }, cb);
+ };
+-SFTPStream.prototype.fchown = function(handle, uid, gid, cb) {
++SFTPStream.prototype.fchown = function (handle, uid, gid, cb) {
+   return this.fsetstat(handle, {
+     uid: uid,
+     gid: gid
+   }, cb);
+ };
+-SFTPStream.prototype.chown = function(path, uid, gid, cb) {
++SFTPStream.prototype.chown = function (path, uid, gid, cb) {
+   return this.setstat(path, {
+     uid: uid,
+     gid: gid
+   }, cb);
+ };
+-SFTPStream.prototype.fchmod = function(handle, mode, cb) {
++SFTPStream.prototype.fchmod = function (handle, mode, cb) {
+   return this.fsetstat(handle, {
+     mode: mode
+   }, cb);
+ };
+-SFTPStream.prototype.chmod = function(path, mode, cb) {
++SFTPStream.prototype.chmod = function (path, mode, cb) {
+   return this.setstat(path, {
+     mode: mode
+   }, cb);
+ };
+-SFTPStream.prototype.readlink = function(path, cb) {
++SFTPStream.prototype.readlink = function (path, cb) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+ 
+@@ -1891,7 +1893,7 @@ SFTPStream.prototype.readlink = function(path, cb) {
+   buf.write(path, p += 4, pathlen, 'utf8');
+ 
+   state.requests[reqid] = {
+-    cb: function(err, names) {
++    cb: function (err, names) {
+       if (err)
+         return cb(err);
+       else if (!names || !names.length)
+@@ -1903,7 +1905,7 @@ SFTPStream.prototype.readlink = function(path, cb) {
+   this.debug('DEBUG[SFTP]: Outgoing: Writing READLINK');
+   return this.push(buf);
+ };
+-SFTPStream.prototype.symlink = function(targetPath, linkPath, cb) {
++SFTPStream.prototype.symlink = function (targetPath, linkPath, cb) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+ 
+@@ -1942,7 +1944,7 @@ SFTPStream.prototype.symlink = function(targetPath, linkPath, cb) {
+   this.debug('DEBUG[SFTP]: Outgoing: Writing SYMLINK');
+   return this.push(buf);
+ };
+-SFTPStream.prototype.realpath = function(path, cb) {
++SFTPStream.prototype.realpath = function (path, cb) {
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+ 
+@@ -1965,7 +1967,7 @@ SFTPStream.prototype.realpath = function(path, cb) {
+   buf.write(path, p += 4, pathlen, 'utf8');
+ 
+   state.requests[reqid] = {
+-    cb: function(err, names) {
++    cb: function (err, names) {
+       if (err)
+         return cb(err);
+       else if (!names || !names.length)
+@@ -1978,13 +1980,13 @@ SFTPStream.prototype.realpath = function(path, cb) {
+   return this.push(buf);
+ };
+ // extended requests
+-SFTPStream.prototype.ext_openssh_rename = function(oldPath, newPath, cb) {
++SFTPStream.prototype.ext_openssh_rename = function (oldPath, newPath, cb) {
+   var state = this._state;
+ 
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+   else if (!state.extensions['posix-rename@openssh.com']
+-           || state.extensions['posix-rename@openssh.com'].indexOf('1') === -1)
++    || state.extensions['posix-rename@openssh.com'].indexOf('1') === -1)
+     throw new Error('Server does not support this extended request');
+ 
+   /*
+@@ -2015,13 +2017,13 @@ SFTPStream.prototype.ext_openssh_rename = function(oldPath, newPath, cb) {
+   this.debug('DEBUG[SFTP]: Outgoing: Writing posix-rename@openssh.com');
+   return this.push(buf);
+ };
+-SFTPStream.prototype.ext_openssh_statvfs = function(path, cb) {
++SFTPStream.prototype.ext_openssh_statvfs = function (path, cb) {
+   var state = this._state;
+ 
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+   else if (!state.extensions['statvfs@openssh.com']
+-           || state.extensions['statvfs@openssh.com'].indexOf('2') === -1)
++    || state.extensions['statvfs@openssh.com'].indexOf('2') === -1)
+     throw new Error('Server does not support this extended request');
+ 
+   /*
+@@ -2051,13 +2053,13 @@ SFTPStream.prototype.ext_openssh_statvfs = function(path, cb) {
+   this.debug('DEBUG[SFTP]: Outgoing: Writing statvfs@openssh.com');
+   return this.push(buf);
+ };
+-SFTPStream.prototype.ext_openssh_fstatvfs = function(handle, cb) {
++SFTPStream.prototype.ext_openssh_fstatvfs = function (handle, cb) {
+   var state = this._state;
+ 
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+   else if (!state.extensions['fstatvfs@openssh.com']
+-           || state.extensions['fstatvfs@openssh.com'].indexOf('2') === -1)
++    || state.extensions['fstatvfs@openssh.com'].indexOf('2') === -1)
+     throw new Error('Server does not support this extended request');
+   else if (!Buffer.isBuffer(handle))
+     throw new Error('handle is not a Buffer');
+@@ -2089,13 +2091,13 @@ SFTPStream.prototype.ext_openssh_fstatvfs = function(handle, cb) {
+   this.debug('DEBUG[SFTP]: Outgoing: Writing fstatvfs@openssh.com');
+   return this.push(buf);
+ };
+-SFTPStream.prototype.ext_openssh_hardlink = function(oldPath, newPath, cb) {
++SFTPStream.prototype.ext_openssh_hardlink = function (oldPath, newPath, cb) {
+   var state = this._state;
+ 
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+   else if (!state.extensions['hardlink@openssh.com']
+-           || state.extensions['hardlink@openssh.com'].indexOf('1') === -1)
++    || state.extensions['hardlink@openssh.com'].indexOf('1') === -1)
+     throw new Error('Server does not support this extended request');
+ 
+   /*
+@@ -2126,13 +2128,13 @@ SFTPStream.prototype.ext_openssh_hardlink = function(oldPath, newPath, cb) {
+   this.debug('DEBUG[SFTP]: Outgoing: Writing hardlink@openssh.com');
+   return this.push(buf);
+ };
+-SFTPStream.prototype.ext_openssh_fsync = function(handle, cb) {
++SFTPStream.prototype.ext_openssh_fsync = function (handle, cb) {
+   var state = this._state;
+ 
+   if (this.server)
+     throw new Error('Client-only method called in server mode');
+   else if (!state.extensions['fsync@openssh.com']
+-           || state.extensions['fsync@openssh.com'].indexOf('1') === -1)
++    || state.extensions['fsync@openssh.com'].indexOf('1') === -1)
+     throw new Error('Server does not support this extended request');
+   else if (!Buffer.isBuffer(handle))
+     throw new Error('handle is not a Buffer');
+@@ -2163,7 +2165,7 @@ SFTPStream.prototype.ext_openssh_fsync = function(handle, cb) {
+ };
+ 
+ // server
+-SFTPStream.prototype.status = function(id, code, message, lang) {
++SFTPStream.prototype.status = function (id, code, message, lang) {
+   if (!this.server)
+     throw new Error('Server-only method called in client mode');
+ 
+@@ -2194,7 +2196,7 @@ SFTPStream.prototype.status = function(id, code, message, lang) {
+   this.debug('DEBUG[SFTP]: Outgoing: Writing STATUS');
+   return this.push(buf);
+ };
+-SFTPStream.prototype.handle = function(id, handle) {
++SFTPStream.prototype.handle = function (id, handle) {
+   if (!this.server)
+     throw new Error('Server-only method called in client mode');
+ 
+@@ -2219,7 +2221,7 @@ SFTPStream.prototype.handle = function(id, handle) {
+   this.debug('DEBUG[SFTP]: Outgoing: Writing HANDLE');
+   return this.push(buf);
+ };
+-SFTPStream.prototype.data = function(id, data, encoding) {
++SFTPStream.prototype.data = function (id, data, encoding) {
+   if (!this.server)
+     throw new Error('Server-only method called in client mode');
+ 
+@@ -2249,12 +2251,12 @@ SFTPStream.prototype.data = function(id, data, encoding) {
+   this.debug('DEBUG[SFTP]: Outgoing: Writing DATA');
+   return this.push(buf);
+ };
+-SFTPStream.prototype.name = function(id, names) {
++SFTPStream.prototype.name = function (id, names) {
+   if (!this.server)
+     throw new Error('Server-only method called in client mode');
+ 
+   if (!Array.isArray(names) && typeof names === 'object')
+-    names = [ names ];
++    names = [names];
+   else if (!Array.isArray(names))
+     throw new Error('names is not an object or array');
+ 
+@@ -2277,12 +2279,12 @@ SFTPStream.prototype.name = function(id, names) {
+   for (i = 0; i < count; ++i) {
+     name = names[i];
+     filename = (!name || !name.filename || typeof name.filename !== 'string'
+-                ? ''
+-                : name.filename);
++      ? ''
++      : name.filename);
+     namesLen += 4 + Buffer.byteLength(filename);
+     longname = (!name || !name.longname || typeof name.longname !== 'string'
+-                ? ''
+-                : name.longname);
++      ? ''
++      : name.longname);
+     namesLen += 4 + Buffer.byteLength(longname);
+ 
+     if (typeof name.attrs === 'object') {
+@@ -2309,8 +2311,8 @@ SFTPStream.prototype.name = function(id, names) {
+     name = names[i];
+ 
+     filename = (!name || !name.filename || typeof name.filename !== 'string'
+-                ? ''
+-                : name.filename);
++      ? ''
++      : name.filename);
+     len = Buffer.byteLength(filename);
+     buf.writeUInt32BE(len, p, true);
+     p += 4;
+@@ -2320,8 +2322,8 @@ SFTPStream.prototype.name = function(id, names) {
+     }
+ 
+     longname = (!name || !name.longname || typeof name.longname !== 'string'
+-                ? ''
+-                : name.longname);
++      ? ''
++      : name.longname);
+     len = Buffer.byteLength(longname);
+     buf.writeUInt32BE(len, p, true);
+     p += 4;
+@@ -2349,7 +2351,7 @@ SFTPStream.prototype.name = function(id, names) {
+   this.debug('DEBUG[SFTP]: Outgoing: Writing NAME');
+   return this.push(buf);
+ };
+-SFTPStream.prototype.attrs = function(id, attrs) {
++SFTPStream.prototype.attrs = function (id, attrs) {
+   if (!this.server)
+     throw new Error('Server-only method called in client mode');
+ 
+@@ -2499,33 +2501,33 @@ function attrsToBytes(attrs) {
+     flags |= ATTR.UIDGID;
+     attrBytes += 8;
+     ret.push([(attrs.uid >> 24) & 0xFF, (attrs.uid >> 16) & 0xFF,
+-              (attrs.uid >> 8) & 0xFF, attrs.uid & 0xFF]);
++    (attrs.uid >> 8) & 0xFF, attrs.uid & 0xFF]);
+     ret.push([(attrs.gid >> 24) & 0xFF, (attrs.gid >> 16) & 0xFF,
+-              (attrs.gid >> 8) & 0xFF, attrs.gid & 0xFF]);
++    (attrs.gid >> 8) & 0xFF, attrs.gid & 0xFF]);
+   }
+   if (typeof attrs.permissions === 'number'
+-      || typeof attrs.permissions === 'string'
+-      || typeof attrs.mode === 'number'
+-      || typeof attrs.mode === 'string') {
++    || typeof attrs.permissions === 'string'
++    || typeof attrs.mode === 'number'
++    || typeof attrs.mode === 'string') {
+     var mode = modeNum(attrs.mode || attrs.permissions);
+     flags |= ATTR.PERMISSIONS;
+     attrBytes += 4;
+     ret.push([(mode >> 24) & 0xFF,
+-              (mode >> 16) & 0xFF,
+-              (mode >> 8) & 0xFF,
+-              mode & 0xFF]);
++    (mode >> 16) & 0xFF,
++    (mode >> 8) & 0xFF,
++    mode & 0xFF]);
+   }
+   if ((typeof attrs.atime === 'number' || isDate(attrs.atime))
+-      && (typeof attrs.mtime === 'number' || isDate(attrs.mtime))) {
++    && (typeof attrs.mtime === 'number' || isDate(attrs.mtime))) {
+     var atime = toUnixTimestamp(attrs.atime);
+     var mtime = toUnixTimestamp(attrs.mtime);
+ 
+     flags |= ATTR.ACMODTIME;
+     attrBytes += 8;
+     ret.push([(atime >> 24) & 0xFF, (atime >> 16) & 0xFF,
+-              (atime >> 8) & 0xFF, atime & 0xFF]);
++    (atime >> 8) & 0xFF, atime & 0xFF]);
+     ret.push([(mtime >> 24) & 0xFF, (mtime >> 16) & 0xFF,
+-              (mtime >> 8) & 0xFF, mtime & 0xFF]);
++    (mtime >> 8) & 0xFF, mtime & 0xFF]);
+   }
+   // TODO: extended attributes
+ 
+@@ -2556,17 +2558,17 @@ var stringFlagMap = {
+   'xw': OPEN_MODE.TRUNC | OPEN_MODE.CREAT | OPEN_MODE.WRITE | OPEN_MODE.EXCL,
+   'w+': OPEN_MODE.TRUNC | OPEN_MODE.CREAT | OPEN_MODE.READ | OPEN_MODE.WRITE,
+   'wx+': OPEN_MODE.TRUNC | OPEN_MODE.CREAT | OPEN_MODE.READ | OPEN_MODE.WRITE
+-         | OPEN_MODE.EXCL,
++    | OPEN_MODE.EXCL,
+   'xw+': OPEN_MODE.TRUNC | OPEN_MODE.CREAT | OPEN_MODE.READ | OPEN_MODE.WRITE
+-         | OPEN_MODE.EXCL,
++    | OPEN_MODE.EXCL,
+   'a': OPEN_MODE.APPEND | OPEN_MODE.CREAT | OPEN_MODE.WRITE,
+   'ax': OPEN_MODE.APPEND | OPEN_MODE.CREAT | OPEN_MODE.WRITE | OPEN_MODE.EXCL,
+   'xa': OPEN_MODE.APPEND | OPEN_MODE.CREAT | OPEN_MODE.WRITE | OPEN_MODE.EXCL,
+   'a+': OPEN_MODE.APPEND | OPEN_MODE.CREAT | OPEN_MODE.READ | OPEN_MODE.WRITE,
+   'ax+': OPEN_MODE.APPEND | OPEN_MODE.CREAT | OPEN_MODE.READ | OPEN_MODE.WRITE
+-         | OPEN_MODE.EXCL,
++    | OPEN_MODE.EXCL,
+   'xa+': OPEN_MODE.APPEND | OPEN_MODE.CREAT | OPEN_MODE.READ | OPEN_MODE.WRITE
+-         | OPEN_MODE.EXCL
++    | OPEN_MODE.EXCL
+ };
+ var stringFlagMapKeys = Object.keys(stringFlagMap);
+ 
+@@ -2597,28 +2599,28 @@ function Stats(initial) {
+   this.atime = (initial && initial.atime);
+   this.mtime = (initial && initial.mtime);
+ }
+-Stats.prototype._checkModeProperty = function(property) {
++Stats.prototype._checkModeProperty = function (property) {
+   return ((this.mode & constants.S_IFMT) === property);
+ };
+-Stats.prototype.isDirectory = function() {
++Stats.prototype.isDirectory = function () {
+   return this._checkModeProperty(constants.S_IFDIR);
+ };
+-Stats.prototype.isFile = function() {
++Stats.prototype.isFile = function () {
+   return this._checkModeProperty(constants.S_IFREG);
+ };
+-Stats.prototype.isBlockDevice = function() {
++Stats.prototype.isBlockDevice = function () {
+   return this._checkModeProperty(constants.S_IFBLK);
+ };
+-Stats.prototype.isCharacterDevice = function() {
++Stats.prototype.isCharacterDevice = function () {
+   return this._checkModeProperty(constants.S_IFCHR);
+ };
+-Stats.prototype.isSymbolicLink = function() {
++Stats.prototype.isSymbolicLink = function () {
+   return this._checkModeProperty(constants.S_IFLNK);
+ };
+-Stats.prototype.isFIFO = function() {
++Stats.prototype.isFIFO = function () {
+   return this._checkModeProperty(constants.S_IFIFO);
+ };
+-Stats.prototype.isSocket = function() {
++Stats.prototype.isSocket = function () {
+   return this._checkModeProperty(constants.S_IFSOCK);
+ };
+ SFTPStream.Stats = Stats;
+@@ -2680,7 +2682,7 @@ function ReadStream(sftp, path, options) {
+     this.pos = this.start;
+   }
+ 
+-  this.on('end', function() {
++  this.on('end', function () {
+     if (self.autoClose) {
+       self.destroy();
+     }
+@@ -2691,9 +2693,9 @@ function ReadStream(sftp, path, options) {
+ }
+ inherits(ReadStream, ReadableStream);
+ 
+-ReadStream.prototype.open = function() {
++ReadStream.prototype.open = function () {
+   var self = this;
+-  this.sftp.open(this.path, this.flags, this.mode, function(er, handle) {
++  this.sftp.open(this.path, this.flags, this.mode, function (er, handle) {
+     if (er) {
+       self.emit('error', er);
+       this.destroyed = this.closed = true;
+@@ -2708,9 +2710,9 @@ ReadStream.prototype.open = function() {
+   });
+ };
+ 
+-ReadStream.prototype._read = function(n) {
++ReadStream.prototype._read = function (n) {
+   if (!Buffer.isBuffer(this.handle)) {
+-    return this.once('open', function() {
++    return this.once('open', function () {
+       this._read(n);
+     });
+   }
+@@ -2762,7 +2764,7 @@ ReadStream.prototype._read = function(n) {
+   }
+ };
+ 
+-ReadStream.prototype.destroy = function() {
++ReadStream.prototype.destroy = function () {
+   if (this.destroyed)
+     return;
+   this.destroyed = true;
+@@ -2771,7 +2773,7 @@ ReadStream.prototype.destroy = function() {
+ };
+ 
+ 
+-ReadStream.prototype.close = function(cb) {
++ReadStream.prototype.close = function (cb) {
+   var self = this;
+   if (cb)
+     this.once('close', cb);
+@@ -2786,7 +2788,7 @@ ReadStream.prototype.close = function(cb) {
+   close();
+ 
+   function close(handle) {
+-    self.sftp.close(handle || self.handle, function(er) {
++    self.sftp.close(handle || self.handle, function (er) {
+       if (er)
+         self.emit('error', er);
+       else
+@@ -2846,9 +2848,9 @@ function WriteStream(sftp, path, options) {
+ }
+ inherits(WriteStream, WritableStream);
+ 
+-WriteStream.prototype.open = function() {
++WriteStream.prototype.open = function () {
+   var self = this;
+-  this.sftp.open(this.path, this.flags, this.mode, function(er, handle) {
++  this.sftp.open(this.path, this.flags, this.mode, function (er, handle) {
+     if (er) {
+       self.emit('error', er);
+       if (self.autoClose) {
+@@ -2864,7 +2866,7 @@ WriteStream.prototype.open = function() {
+       if (err) {
+         // Try chmod() for sftp servers that may not support fchmod() for
+         // whatever reason
+-        self.sftp.chmod(self.path, self.mode, function(err_) {
++        self.sftp.chmod(self.path, self.mode, function (err_) {
+           tryAgain();
+         });
+         return;
+@@ -2876,7 +2878,7 @@ WriteStream.prototype.open = function() {
+           if (err) {
+             // Try stat() for sftp servers that may not support fstat() for
+             // whatever reason
+-            self.sftp.stat(self.path, function(err_, st_) {
++            self.sftp.stat(self.path, function (err_, st_) {
+               if (err_) {
+                 self.destroy();
+                 self.emit('error', err);
+@@ -2897,38 +2899,38 @@ WriteStream.prototype.open = function() {
+   });
+ };
+ 
+-WriteStream.prototype._write = function(data, encoding, cb) {
++WriteStream.prototype._write = function (data, encoding, cb) {
+   if (!Buffer.isBuffer(data))
+     return this.emit('error', new Error('Invalid data'));
+ 
+   if (!Buffer.isBuffer(this.handle)) {
+-    return this.once('open', function() {
++    return this.once('open', function () {
+       this._write(data, encoding, cb);
+     });
+   }
+ 
+   var self = this;
+   this.sftp.writeData(this.handle,
+-                      data,
+-                      0,
+-                      data.length,
+-                      this.pos,
+-                      function(er, bytes) {
+-    if (er) {
+-      if (self.autoClose)
+-        self.destroy();
+-      return cb(er);
+-    }
+-    self.bytesWritten += bytes;
+-    cb();
+-  });
++    data,
++    0,
++    data.length,
++    this.pos,
++    function (er, bytes) {
++      if (er) {
++        if (self.autoClose)
++          self.destroy();
++        return cb(er);
++      }
++      self.bytesWritten += bytes;
++      cb();
++    });
+ 
+   this.pos += data.length;
+ };
+ 
+-WriteStream.prototype._writev = function(data, cb) {
++WriteStream.prototype._writev = function (data, cb) {
+   if (!Buffer.isBuffer(this.handle)) {
+-    return this.once('open', function() {
++    return this.once('open', function () {
+       this._writev(data, cb);
+     });
+   }

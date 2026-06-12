@@ -2,6 +2,7 @@
     "name": "ev3dev-browser",
     "displayName": "ev3dev-browser",
     "description": "Browse for ev3dev devices",
+    "postinstall": "patch-package",
     "icon": "resources/icons/ev3dev-logo.png",
     "version": "1.2.2",
     "publisher": "ev3dev",
@@ -442,6 +443,7 @@
         "@types/vscode": "^1.39.0",
         "@types/zen-observable": "^0.5.3",
         "esbuild": "^0.17.14",
+        "patch-package": "^8.0.1",
         "tslint": "^5.8.0",
         "typescript": "^4.9.5",
         "vscode-test": "^1.3.0"
