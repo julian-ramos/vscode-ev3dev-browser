@@ -1,6 +1,9 @@
 {
 	"compilerOptions": {
 		"baseUrl": ".",
+		"useUnknownInCatchVariables": false,
+		"strictNullChecks": false,
+		"ignoreDeprecations": "6.0",
 		"paths": {
 			"*": [
 				"types/*"

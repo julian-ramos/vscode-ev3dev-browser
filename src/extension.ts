@@ -717,7 +717,7 @@ class DeviceTreeItem extends vscode.TreeItem {
             location: vscode.ProgressLocation.Window,
             title: "Capturing screenshot..."
         }, progress => {
-            return new Promise(async (resolve, reject) => {
+            return new Promise<void>(async (resolve, reject) => {
                 const handleCaptureError = (e: any) => {
                     vscode.window.showErrorMessage("Error capturing screenshot: " + (e.message || e));
                     reject();

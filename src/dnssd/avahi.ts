@@ -61,7 +61,7 @@ async function getServer(): Promise<ServerObject> {
         // dbus-next will queue messages and wait forever for a connection
         // so we have to hack in a timeout, otherwise we end up with a deadlock
         // on systems without D-Bus.
-        await new Promise((resolve, reject) => {
+        await new Promise<void>((resolve, reject) => {
             const timeout = setTimeout(() => {
                 reject(Error("Timeout while connecting to D-Bus"));
             }, 100);
@@ -91,7 +91,7 @@ class AvahiClient implements dnssd.Client {
     }
 
     public createBrowser(options: dnssd.BrowseOptions): Promise<dnssd.Browser> {
-        return new Promise((resolve, reject) => {
+        return new Promise<dnssd.Browser>((resolve, reject) => {
             const browser = new AvahiBrowser(this, options);
             browser.once('ready', () => {
                 browser.removeAllListeners('error');
